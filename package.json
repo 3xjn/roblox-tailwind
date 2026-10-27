@@ -1,0 +1,50 @@
+{
+  "name": "@3xjn/roblox-tailwind",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./roblox": {
+      "types": "./runtime/index.d.ts",
+      "default": "./runtime/init.luau"
+    }
+  },
+  "files": [
+    "dist",
+    "runtime"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@3xjn/roblox-css-compiler": "git+https://github.com/3xjn/roblox-css-compiler.git#8590ec16a4afade8032fcaa92a5861bdbc620b01",
+    "@tailwindcss/node": "4.3.0",
+    "@tailwindcss/oxide": "4.3.0",
+    "tailwindcss": "4.3.0",
+    "tailwind-merge": "3.7.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/3xjn/roblox-tailwind.git"
+  },
+  "homepage": "https://github.com/3xjn/roblox-tailwind#readme",
+  "bugs": {
+    "url": "https://github.com/3xjn/roblox-tailwind/issues"
+  },
+  "description": "Tailwind compilation and runtime class merging for Roblox CSS.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "@types/node": "^24.0.0"
+  }
+}
