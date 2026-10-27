@@ -25,11 +25,11 @@
     "prepare": "npm run build"
   },
   "dependencies": {
-    "@3xjn/roblox-css-compiler": "git+https://github.com/3xjn/roblox-css-compiler.git#8590ec16a4afade8032fcaa92a5861bdbc620b01",
+    "@3xjn/roblox-css-compiler": "github:3xjn/roblox-css-compiler#b46209e9a85b4d2715f5fccddca024db980e82b7",
     "@tailwindcss/node": "4.3.0",
     "@tailwindcss/oxide": "4.3.0",
-    "tailwindcss": "4.3.0",
-    "tailwind-merge": "3.7.0"
+    "tailwind-merge": "3.7.0",
+    "tailwindcss": "4.3.0"
   },
   "repository": {
     "type": "git",
@@ -45,7 +45,7 @@
     "node": ">=22.18.0"
   },
   "devDependencies": {
-    "typescript": "~5.8.3",
-    "@types/node": "^24.0.0"
+    "@types/node": "^24.0.0",
+    "typescript": "~5.8.3"
   }
 }
