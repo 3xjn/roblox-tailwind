@@ -17,7 +17,8 @@
   },
   "files": [
     "dist",
-    "runtime"
+    "runtime",
+    "default.project.json"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
