@@ -6,3 +6,5 @@ artifacts/
 *.rbxm
 *.rbxl
 *.rbxlx
+
+examples/raw-roblox-and-components/generated/

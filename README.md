@@ -47,6 +47,13 @@ runtime cache holds fewer than 1,000 entries; `cacheSize = 0` disables it.
 Class composition does not establish support for the resulting CSS or component
 behavior. Those still pass through the compiler, runtime and native adapters.
 
+## Example: raw Roblox and components
+
+See [examples/raw-roblox-and-components](examples/raw-roblox-and-components/README.md) for a complete walkthrough using `@3xjn/roblox-tailwind` with:
+
+- **Raw Roblox Luau** ([RawRobloxHost.client.luau](examples/raw-roblox-and-components/RawRobloxHost.client.luau)) via `Css.createHost` directly on a `ScreenGui` (no React required).
+- **Reusable React Luau components** ([Components.luau](examples/raw-roblox-and-components/Components.luau)) with variant maps and runtime `className` override merging via `Tailwind.createClassMerger`.
+
 ## Repository setup
 
 This repository contains the `@3xjn/roblox-tailwind` package. It is in active development and has not been published to npm.
@@ -54,9 +61,7 @@ This repository contains the `@3xjn/roblox-tailwind` package. It is in active de
 Related packages:
 
 - [@3xjn/roblox-css-compiler](https://github.com/3xjn/roblox-css-compiler)
-
-Run `npm install` to install development dependencies from the related GitHub repositories.
+- [@3xjn/roblox-css](https://github.com/3xjn/roblox-css)
+- [@3xjn/roblox-css-react](https://github.com/3xjn/roblox-css-react)
 
 Run `npm install` and `npm run build` to compile the TypeScript package. Git installations build its compiled JavaScript through the `prepare` script.
-
-The development gallery and cross-package tests remain in the private [roblox-styling workspace](https://github.com/3xjn/roblox-styling).
