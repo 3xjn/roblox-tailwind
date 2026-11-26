@@ -1,14 +1,14 @@
 import React from '@rbxts/react';
+import { cn } from './cn';
 
 export interface StatusCardProps {
   title: string;
   online: boolean;
   className?: string;
   onToggle: () => void;
-  cn: (...classes: (string | undefined)[]) => string;
 }
 
-export function StatusCard({ title, online, className, onToggle, cn }: StatusCardProps) {
+export function StatusCard({ title, online, className, onToggle }: StatusCardProps) {
   return (
     <div className={cn('flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-950 p-5', className)}>
       <div className="flex items-center justify-between gap-2">
@@ -27,10 +27,7 @@ export function StatusCard({ title, online, className, onToggle, cn }: StatusCar
       </p>
       <div className="flex items-center gap-2">
         <button
-          className={cn(
-            'flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium',
-            'bg-zinc-100 text-zinc-950 hover:bg-zinc-200 active:bg-zinc-300',
-          )}
+          className="flex items-center justify-center rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-zinc-200 active:bg-zinc-300"
           onClick={onToggle}
         >
           Toggle status
