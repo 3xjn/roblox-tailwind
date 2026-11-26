@@ -4,6 +4,7 @@ This example shows how to compile Tailwind utilities once on Node.js with `@3xjn
 
 1. **[RawRobloxHost.client.luau](RawRobloxHost.client.luau)** — Pure Roblox Luau using `@3xjn/roblox-css` (`Css.createHost`) directly on a `ScreenGui` with no React dependency.
 2. **[Components.luau](Components.luau)** — Reusable React Luau components (`Badge`, `Button`, `StatusCard`) with variant maps and `className` override merging via `Tailwind.createClassMerger`.
+3. **[StatusCard.tsx](StatusCard.tsx)** — TSX component compiled through `@3xjn/roblox-react-compiler` / `roblox-ts`, sharing the same Tailwind stylesheet and `cn` class merger.
 
 ## Build the stylesheet and class-merge data
 
