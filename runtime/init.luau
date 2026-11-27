@@ -132,4 +132,339 @@ local function createClassMerger(metadata: Metadata, options: Options?): Merger
 	end
 end
 
-return { createClassMerger = createClassMerger }
+export type ElementProps = {
+	text: string?,
+	id: string?,
+	attributes: { [string]: string }?,
+	states: { [string]: boolean }?,
+	Parent: Instance?,
+	mount: Instance?,
+	onActivated: (() -> ())?,
+	[number]: any,
+}
+
+export type ElementHandle = {
+	tag: string,
+	className: string,
+	text: string?,
+	id: string?,
+	attributes: { [string]: string }?,
+	states: { [string]: boolean }?,
+	onActivated: (() -> ())?,
+	children: { ElementHandle },
+	gui: () -> GuiObject?,
+	destroy: () -> (),
+}
+
+export type RuntimeConfig = {
+	stylesheet: any,
+	classMerge: Metadata?,
+	css: any?,
+	primitives: any?,
+	hostOptions: { [string]: any }?,
+}
+
+local function mergeClassStrings(merger: Merger?, current: string, incoming: string): string
+	if merger then
+		return merger(current, incoming)
+	end
+	if current == "" then
+		return incoming
+	end
+	if incoming == "" then
+		return current
+	end
+	return current .. " " .. incoming
+end
+
+local function create(config: RuntimeConfig)
+	assert(type(config) == "table" and config.stylesheet ~= nil, "Tailwind.create requires a compiled stylesheet")
+	local merger: Merger? = if config.classMerge then createClassMerger(config.classMerge) else nil
+	local cssModule: any = config.css
+	local primitivesModule: any = config.primitives
+
+	local function resolveCss(): any
+		if cssModule == nil then
+			local parent = script.Parent
+			local found = if parent then parent:FindFirstChild("Css") else nil
+			assert(found, "Tailwind.create requires sibling Css module or config.css")
+			cssModule = require(found :: any)
+		end
+		return cssModule
+	end
+
+	local function resolvePrimitives(): any
+		if primitivesModule == nil then
+			local parent = script.Parent
+			local found = if parent then parent:FindFirstChild("Primitives") else nil
+			if found then
+				primitivesModule = require(found :: any)
+			end
+		end
+		return primitivesModule
+	end
+
+	local function defaultHostOptions(Css: any): { [string]: any }
+		local opts: { [string]: any } = if config.hostOptions then table.clone(config.hostOptions) else {}
+		if opts.nativeTextLine == nil then
+			opts.nativeTextLine = true
+		end
+		local styles: { [string]: any } = if opts.styles then table.clone(opts.styles) else {}
+		if styles.fonts == nil and type(Css.createFontProvider) == "function" then
+			local fonts = Css.createFontProvider()
+			fonts:register("sans-serif", Enum.Font.BuilderSans, { ascent = 0.8, descent = 0.2 })
+			fonts:register("Builder Sans", Enum.Font.BuilderSans, { ascent = 0.8, descent = 0.2 })
+			fonts:register("monospace", Enum.Font.RobotoMono)
+			styles.fonts = fonts
+		end
+		if styles.environment == nil then
+			styles.environment = {
+				mediaType = "screen",
+				initialFontSize = 16,
+				features = {
+					hover = "hover",
+					pointer = "fine",
+					["prefers-reduced-motion"] = "no-preference",
+				},
+			}
+		end
+		opts.styles = styles
+		return opts
+	end
+
+	local function mountTree(target: Instance?, rootElement: any): () -> ()
+		local Css = resolveCss()
+		local Primitives = resolvePrimitives()
+
+		local ownedGui: ScreenGui? = nil
+		local ownedMount: Frame? = nil
+		local mountFrame: GuiObject
+
+		if target == nil then
+			local Players = game:GetService("Players")
+			local gui = Instance.new("ScreenGui")
+			gui.Name = "TailwindRoot"
+			gui.ResetOnSpawn = false
+			gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+			gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+			ownedGui = gui
+			local frame = Instance.new("Frame")
+			frame.Name = "TailwindMount"
+			frame.BackgroundTransparency = 1
+			frame.Size = UDim2.fromScale(1, 1)
+			frame.Parent = gui
+			ownedMount = frame
+			mountFrame = frame
+		elseif target:IsA("ScreenGui") then
+			target.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+			local frame = Instance.new("Frame")
+			frame.Name = "TailwindMount"
+			frame.BackgroundTransparency = 1
+			frame.Size = UDim2.fromScale(1, 1)
+			frame.Parent = target
+			ownedMount = frame
+			mountFrame = frame
+		elseif target:IsA("GuiObject") then
+			mountFrame = target
+		else
+			error("Tailwind mount target must be a ScreenGui, GuiObject, or nil", 2)
+		end
+
+		local host = Css.createHost(mountFrame, config.stylesheet, defaultHostOptions(Css))
+		local scope = if Primitives and type(Primitives.createScope) == "function" then Primitives.createScope() else nil
+		local buttons: { any } = {}
+
+		local function attachNode(elem: any, parentNode: any?)
+			local node = host:add({
+				tag = elem.tag,
+				id = elem.id,
+				className = elem.className,
+				attributes = elem.attributes,
+				states = elem.states,
+				text = elem.text,
+			}, parentNode)
+			elem._host = host
+			elem._node = node
+			if elem.tag == "button" or elem.onActivated ~= nil then
+				table.insert(buttons, elem)
+			end
+			for _, child in elem.children do
+				attachNode(child, node)
+			end
+		end
+
+		attachNode(rootElement, nil)
+		host:flushSync()
+
+		for _, elem in buttons do
+			local guiObj = host:getGuiObject(elem._node)
+			if guiObj and guiObj:IsA("GuiButton") then
+				if scope then
+					scope.bindButton(guiObj, {
+						onState = function(state: any)
+							host:setState(elem._node, "hover", state.hovered == true)
+							host:setState(elem._node, "active", state.pressed == true)
+							host:setState(elem._node, "focus-visible", state.focusVisible == true)
+						end,
+						onActivated = elem.onActivated,
+					})
+				elseif elem.onActivated then
+					guiObj.Activated:Connect(elem.onActivated)
+				end
+			end
+		end
+
+		local destroyed = false
+		local function destroy()
+			if destroyed then
+				return
+			end
+			destroyed = true
+			if scope then
+				scope.destroy()
+			end
+			host:destroy()
+			if ownedMount then
+				ownedMount:Destroy()
+			end
+			if ownedGui then
+				ownedGui:Destroy()
+			end
+		end
+
+		rootElement._destroy = destroy
+		mountFrame.Destroying:Once(destroy)
+		return destroy
+	end
+
+	local function makeElement(tag: string, className: string?, propsOrText: (string | ElementProps)?): ElementHandle
+		local props: ElementProps = {}
+		local text: string? = nil
+		if type(propsOrText) == "string" then
+			text = propsOrText
+		elseif type(propsOrText) == "table" then
+			props = propsOrText
+			text = props.text
+		end
+
+		local children: { ElementHandle } = {}
+		for index = 1, #props do
+			local child = props[index]
+			if child ~= nil then
+				table.insert(children, child)
+			end
+		end
+
+		local elem: any = {
+			tag = tag,
+			className = className or "",
+			text = text,
+			id = props.id,
+			attributes = props.attributes,
+			states = props.states,
+			onActivated = props.onActivated,
+			children = children,
+			_host = nil,
+			_node = nil,
+			_destroy = nil,
+		}
+		elem.gui = function(): GuiObject?
+			if elem._host and elem._node then
+				return elem._host:getGuiObject(elem._node)
+			end
+			return nil
+		end
+		elem.destroy = function()
+			if elem._destroy then
+				elem._destroy()
+			end
+		end
+
+		local mountTarget = props.Parent or props.mount
+		if mountTarget ~= nil then
+			mountTree(mountTarget, elem)
+		end
+
+		return elem
+	end
+
+	local function updateElement(elem: any, update: string | { className: string?, text: string?, attributes: { [string]: string }?, states: { [string]: boolean }? }, replaceClasses: boolean?)
+		assert(type(elem) == "table" and elem.tag ~= nil, "Expected a Tailwind element handle")
+		local nextClass = elem.className
+		local nextText = elem.text
+		local nextAttributes = elem.attributes
+		local nextStates = elem.states
+
+		if type(update) == "string" then
+			nextClass = if replaceClasses then update else mergeClassStrings(merger, elem.className, update)
+		elseif type(update) == "table" then
+			if update.className ~= nil then
+				nextClass = if replaceClasses then update.className else mergeClassStrings(merger, elem.className, update.className)
+			end
+			if update.text ~= nil then
+				nextText = update.text
+			end
+			if update.attributes ~= nil then
+				nextAttributes = update.attributes
+			end
+			if update.states ~= nil then
+				nextStates = update.states
+			end
+		end
+
+		elem.className = nextClass
+		elem.text = nextText
+		elem.attributes = nextAttributes
+		elem.states = nextStates
+
+		if elem._host and elem._node then
+			elem._host:update(elem._node, {
+				tag = elem.tag,
+				id = elem.id,
+				className = nextClass,
+				attributes = nextAttributes,
+				states = nextStates,
+				text = nextText,
+			})
+		end
+		return elem
+	end
+
+	local api: any = {
+		cn = function(...: string?): string
+			if merger then
+				return merger(...)
+			end
+			local parts = {}
+			for index = 1, select("#", ...) do
+				local value = select(index, ...)
+				if type(value) == "string" and value ~= "" then
+					table.insert(parts, value)
+				end
+			end
+			return table.concat(parts, " ")
+		end,
+		el = makeElement,
+		mount = mountTree,
+		set = function(elem: any, className: string)
+			return updateElement(elem, className, true)
+		end,
+	}
+
+	for _, tag in { "div", "span", "p", "button", "input", "img" } do
+		api[tag] = function(className: string?, propsOrText: (string | ElementProps)?)
+			return makeElement(tag, className, propsOrText)
+		end
+	end
+
+	return setmetatable(api, {
+		__call = function(_self, elem: any, update: any)
+			return updateElement(elem, update, false)
+		end,
+	})
+end
+
+return {
+	createClassMerger = createClassMerger,
+	create = create,
+}

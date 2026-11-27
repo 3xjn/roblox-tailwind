@@ -1,0 +1,42 @@
+{
+  "name": "TailwindRawRobloxDemo",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Packages": {
+        "$className": "Folder",
+        "Tailwind": {
+          "$path": "../../runtime"
+        },
+        "Css": {
+          "$path": "../../../roblox-css/src"
+        },
+        "Unicode": {
+          "$path": "../../../roblox-unicode/src"
+        },
+        "Primitives": {
+          "$path": "../../../roblox-primitives/src"
+        }
+      },
+      "Generated": {
+        "$className": "Folder",
+        "Stylesheet": {
+          "$path": "generated/Stylesheet.json"
+        },
+        "ClassMerge": {
+          "$path": "generated/ClassMerge.json"
+        }
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "TailwindDemo": {
+          "$path": "RawRobloxHost.client.luau"
+        }
+      }
+    }
+  }
+}
