@@ -272,7 +272,38 @@ local function create(config: RuntimeConfig)
 
 		local host = Css.createHost(mountFrame, config.stylesheet, defaultHostOptions(Css))
 		local scope = if Primitives and type(Primitives.createScope) == "function" then Primitives.createScope() else nil
-		local buttons: { any } = {}
+		local mountedElements: { any } = {}
+		local connections: { RBXScriptConnection } = {}
+
+		local function isCssAttribute(name: string): boolean
+			return name == "disabled" or string.sub(name, 1, 5) == "data-" or string.sub(name, 1, 5) == "aria-"
+		end
+
+		local function toCssAttributeValue(value: any): string?
+			if value == nil or value == false then
+				return nil
+			elseif value == true then
+				return ""
+			end
+			return tostring(value)
+		end
+
+		local function syncAttributesToGui(elem: any)
+			local guiObj = elem._gui
+			if not guiObj then
+				return
+			end
+			elem._syncingAttrs = true
+			guiObj:SetAttribute("class", elem.className)
+			if elem.attributes then
+				for name, value in elem.attributes do
+					if isCssAttribute(name) then
+						guiObj:SetAttribute(name, value)
+					end
+				end
+			end
+			elem._syncingAttrs = false
+		end
 
 		local function attachNode(elem: any, parentNode: any?)
 			local node = host:add({
@@ -285,9 +316,8 @@ local function create(config: RuntimeConfig)
 			}, parentNode)
 			elem._host = host
 			elem._node = node
-			if elem.tag == "button" or elem.onActivated ~= nil then
-				table.insert(buttons, elem)
-			end
+			elem._syncAttributes = syncAttributesToGui
+			table.insert(mountedElements, elem)
 			for _, child in elem.children do
 				attachNode(child, node)
 			end
@@ -296,20 +326,65 @@ local function create(config: RuntimeConfig)
 		attachNode(rootElement, nil)
 		host:flushSync()
 
-		for _, elem in buttons do
+		for _, elem in mountedElements do
 			local guiObj = host:getGuiObject(elem._node)
-			if guiObj and guiObj:IsA("GuiButton") then
-				if scope then
-					scope.bindButton(guiObj, {
-						onState = function(state: any)
-							host:setState(elem._node, "hover", state.hovered == true)
-							host:setState(elem._node, "active", state.pressed == true)
-							host:setState(elem._node, "focus-visible", state.focusVisible == true)
-						end,
-						onActivated = elem.onActivated,
-					})
-				elseif elem.onActivated then
-					guiObj.Activated:Connect(elem.onActivated)
+			if guiObj then
+				elem._gui = guiObj
+				syncAttributesToGui(elem)
+				if guiObj.AttributeChanged then
+					local attrConn = guiObj.AttributeChanged:Connect(function(attrName: string)
+						if elem._syncingAttrs then
+							return
+						end
+						if attrName == "class" then
+							local raw = guiObj:GetAttribute("class")
+							local nextClass = if type(raw) == "string" then raw else ""
+							elem.className = nextClass
+							host:update(elem._node, {
+								tag = elem.tag,
+								id = elem.id,
+								className = nextClass,
+								attributes = elem.attributes,
+								states = elem.states,
+								text = elem.text,
+							})
+						elseif isCssAttribute(attrName) then
+							local nextVal = toCssAttributeValue(guiObj:GetAttribute(attrName))
+							local attrs = elem.attributes
+							if attrs == nil then
+								attrs = {}
+								elem.attributes = attrs
+							end
+							attrs[attrName] = nextVal
+							if type(host.setAttribute) == "function" then
+								host:setAttribute(elem._node, attrName, nextVal)
+							else
+								host:update(elem._node, {
+									tag = elem.tag,
+									id = elem.id,
+									className = elem.className,
+									attributes = attrs,
+									states = elem.states,
+									text = elem.text,
+								})
+							end
+						end
+					end)
+					table.insert(connections, attrConn)
+				end
+				if (elem.tag == "button" or elem.onActivated ~= nil) and guiObj:IsA("GuiButton") then
+					if scope then
+						scope.bindButton(guiObj, {
+							onState = function(state: any)
+								host:setState(elem._node, "hover", state.hovered == true)
+								host:setState(elem._node, "active", state.pressed == true)
+								host:setState(elem._node, "focus-visible", state.focusVisible == true)
+							end,
+							onActivated = elem.onActivated,
+						})
+					elseif elem.onActivated then
+						table.insert(connections, guiObj.Activated:Connect(elem.onActivated))
+					end
 				end
 			end
 		end
@@ -320,6 +395,10 @@ local function create(config: RuntimeConfig)
 				return
 			end
 			destroyed = true
+			for _, conn in connections do
+				conn:Disconnect()
+			end
+			table.clear(connections)
 			if scope then
 				scope.destroy()
 			end
@@ -426,6 +505,9 @@ local function create(config: RuntimeConfig)
 				states = nextStates,
 				text = nextText,
 			})
+			if elem._syncAttributes then
+				elem._syncAttributes(elem)
+			end
 		end
 		return elem
 	end
