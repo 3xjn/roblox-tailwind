@@ -185,7 +185,7 @@ local function create(config: RuntimeConfig)
 
 	local function resolveCss(): any
 		if cssModule == nil then
-			local parent = script.Parent
+			local parent = if script then script.Parent else nil
 			local found = if parent then parent:FindFirstChild("Css") else nil
 			assert(found, "Tailwind.create requires sibling Css module or config.css")
 			cssModule = require(found :: any)
@@ -195,7 +195,7 @@ local function create(config: RuntimeConfig)
 
 	local function resolvePrimitives(): any
 		if primitivesModule == nil then
-			local parent = script.Parent
+			local parent = if script then script.Parent else nil
 			local found = if parent then parent:FindFirstChild("Primitives") else nil
 			if found then
 				primitivesModule = require(found :: any)
